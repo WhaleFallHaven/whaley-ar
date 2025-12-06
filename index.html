@@ -199,8 +199,12 @@
               cursor="fuse: false; rayOrigin: mouse;"
               raycaster="near: 10; far: 10000; objects: .clickable"></a-camera>
 
-    <a-entity id="whaley-target" mindar-image-target="targetIndex: 0">
+    <a-entity id="whaley-target-0" mindar-image-target="targetIndex: 0">
         <!-- Spine container will be added via THREE.js -->
+    </a-entity>
+
+    <a-entity id="whaley-target-1" mindar-image-target="targetIndex: 1">
+        <!-- Mirrored spine will be shown here -->
     </a-entity>
 </a-scene>
 
@@ -294,10 +298,13 @@
         }
 
         // Spine variables
-        const whaleyTarget = document.getElementById('whaley-target');
+        const whaleyTarget0 = document.getElementById('whaley-target-0');
+        const whaleyTarget1 = document.getElementById('whaley-target-1');
         let skeletonMesh;
         let assetManager;
-        let targetVisible = false;
+        let target0Visible = false;
+        let target1Visible = false;
+        let activeTarget = null; // 0 or 1
         let isAnimating = false;
 
         let arSystem;
@@ -388,19 +395,15 @@
                     })
                 });
 
-                skeletonMesh.scale.set(0.0005, 0.0005, 0.0005);
                 skeletonMesh.position.set(0, 0, -0.5);
-
-                // Add to target entity
-                const targetObject = whaleyTarget.object3D;
-                targetObject.add(skeletonMesh);
+                // Scale will be set when attached to target (normal or mirrored)
 
                 // Setup click interaction
                 const raycaster = new THREE.Raycaster();
                 const mouse = new THREE.Vector2();
 
                 sceneEl.addEventListener('click', (event) => {
-                    if (!targetVisible || isAnimating) return;
+                    if (activeTarget === null || isAnimating) return;
 
                     const camera = sceneEl.camera;
                     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -420,6 +423,30 @@
                 console.error('Failed to create Spine mesh:', error);
                 return false;
             }
+        }
+
+        // Helper function to move mesh between targets
+        function attachMeshToTarget(targetIndex) {
+            if (!skeletonMesh) return;
+
+            // Detach from current parent if exists
+            if (skeletonMesh.parent) {
+                skeletonMesh.parent.remove(skeletonMesh);
+            }
+
+            // Attach to new target
+            const targetObject = targetIndex === 0 ? whaleyTarget0.object3D : whaleyTarget1.object3D;
+            targetObject.add(skeletonMesh);
+
+            // Set scale (mirror for target 1)
+            if (targetIndex === 0) {
+                skeletonMesh.scale.set(0.0005, 0.0005, 0.0005);
+            } else {
+                skeletonMesh.scale.set(-0.0005, 0.0005, 0.0005); // Mirrored
+            }
+
+            activeTarget = targetIndex;
+            console.log(`Mesh attached to target ${targetIndex}, mirrored: ${targetIndex === 1}`);
         }
 
         // Animation logic
@@ -479,13 +506,14 @@
             console.log("Scene loaded, AR system ready");
         });
 
-        // Target tracking events
-        whaleyTarget.addEventListener("targetFound", event => {
-            console.log("Whaley target found");
-            targetVisible = true;
+        // Target 0 tracking events
+        whaleyTarget0.addEventListener("targetFound", event => {
+            console.log("Whaley target 0 found (normal)");
+            target0Visible = true;
 
             if (skeletonMesh && modelLoaded) {
-                startIdleSequence();
+                attachMeshToTarget(0);
+                if (activeTarget === 0) startIdleSequence();
                 modelLoadingOverlay.style.display = 'none';
             } else {
                 modelLoadingOverlay.style.display = 'block';
@@ -500,6 +528,7 @@
                             if (!skeletonMesh) {
                                 createSpineMesh();
                             }
+                            attachMeshToTarget(0);
                             startIdleSequence();
                             modelLoadingOverlay.style.display = 'none';
                         }
@@ -508,11 +537,70 @@
             }
         });
 
-        whaleyTarget.addEventListener("targetLost", event => {
-            console.log("Whaley target lost");
-            targetVisible = false;
-            isAnimating = false;
-            modelLoadingOverlay.style.display = 'none';
+        whaleyTarget0.addEventListener("targetLost", event => {
+            console.log("Whaley target 0 lost");
+            target0Visible = false;
+
+            // If target 1 is visible, switch to it
+            if (target1Visible) {
+                attachMeshToTarget(1);
+                startIdleSequence();
+            } else {
+                isAnimating = false;
+                activeTarget = null;
+                modelLoadingOverlay.style.display = 'none';
+            }
+        });
+
+        // Target 1 tracking events
+        whaleyTarget1.addEventListener("targetFound", event => {
+            console.log("Whaley target 1 found (mirrored)");
+            target1Visible = true;
+
+            if (skeletonMesh && modelLoaded) {
+                // Only switch if target 0 is not visible (priority to target 0)
+                if (!target0Visible) {
+                    attachMeshToTarget(1);
+                    startIdleSequence();
+                }
+                modelLoadingOverlay.style.display = 'none';
+            } else {
+                modelLoadingOverlay.style.display = 'block';
+                let fakeProgress = 0;
+                const progressInterval = setInterval(() => {
+                    fakeProgress += 2;
+                    updateProgress(arProgress, fakeProgress);
+
+                    if (fakeProgress >= 100 || modelLoaded) {
+                        clearInterval(progressInterval);
+                        if (modelLoaded) {
+                            if (!skeletonMesh) {
+                                createSpineMesh();
+                            }
+                            if (!target0Visible) {
+                                attachMeshToTarget(1);
+                                startIdleSequence();
+                            }
+                            modelLoadingOverlay.style.display = 'none';
+                        }
+                    }
+                }, 100);
+            }
+        });
+
+        whaleyTarget1.addEventListener("targetLost", event => {
+            console.log("Whaley target 1 lost");
+            target1Visible = false;
+
+            // If target 0 is visible, switch to it
+            if (target0Visible) {
+                attachMeshToTarget(0);
+                startIdleSequence();
+            } else {
+                isAnimating = false;
+                activeTarget = null;
+                modelLoadingOverlay.style.display = 'none';
+            }
         });
 
         // Start button click handler
@@ -582,7 +670,7 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            if (skeletonMesh && targetVisible) {
+            if (skeletonMesh && activeTarget !== null) {
                 const now = Date.now() / 1000;
                 const delta = now - lastFrameTime;
                 lastFrameTime = now;
