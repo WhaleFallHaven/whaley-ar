@@ -1,0 +1,605 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<!--
+      ©鲸鲸工作室
+      Art: Tworain
+      Dev: Billiton
+    -->
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.0/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/BillyPung/mind-ar-js/mindar-image-aframe.prod.js"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.181.0/examples/jsm/",
+            "mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js",
+            "spine-threejs": "https://unpkg.com/@esotericsoftware/spine-threejs@4.2.95/dist/esm/spine-threejs.min.mjs"
+          }
+        }
+    </script>
+    <link rel="stylesheet" href="./assets/css/style.css" />
+    <title>AR Demo</title>
+    <style>
+        /* Additional styles for loading states */
+        .model-loading-overlay {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            z-index: 998;
+            display: none;
+        }
+
+        .loading-progress {
+            width: 150px;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .loading-progress-bar {
+            height: 100%;
+            background: linear-gradient(45deg, #25398a, #246bee);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+
+        /* Copy Link Button */
+        #copy-link-button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.3rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            min-width: 200px;
+        }
+
+        #copy-link-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #45a049, #4CAF50);
+        }
+
+        /* Copyright Drawer */
+        #copyright-drawer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 999;
+            transition: transform 0.3s ease;
+        }
+
+        #copyright-tab {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 8px 20px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12px;
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+        }
+
+        #copyright-content {
+            background: linear-gradient(135deg, #2a5298, #1e3c72);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        #copyright-drawer.expanded #copyright-content {
+            max-height: 200px;
+            padding: 15px 20px;
+        }
+
+        #copyright-content p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        #copyright-content a {
+            color: #4fc3f7;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        #copyright-content a:hover {
+            color: #81d4fa;
+            text-decoration: underline;
+        }
+    </style>
+
+
+</head>
+
+<body>
+<!-- Start UI Overlay -->
+<div id="ui-overlay">
+    <div class="start-container">
+        <p id="main-instruction">同意摄像头权限后，将摄像头对准识别图像。</p>
+
+        <!-- Safari Warning (initially hidden) -->
+        <div id="safari-warning" style="display: none;">
+            <h3 style="color: #1925bb; margin-bottom: 1rem;">⚠️ 浏览器不兼容</h3>
+            <p style="color: rgba(255,255,255,0.9); margin-bottom: 1rem;">
+                您的浏览器对AR功能支持有限，请使用以下浏览器获得最佳体验：
+            </p>
+            <p style="color: white; font-weight: bold; margin-bottom: 1.5rem;">
+                Chrome | Firefox | Edge
+            </p>
+            <button id="copy-link-button">复制链接</button>
+            <p id="copy-success" style="color: #979f97; margin-top: 10px; display: none;">
+                链接已复制！请在其他浏览器中打开
+            </p>
+        </div>
+
+        <!-- Normal start interface -->
+        <div id="normal-interface">
+            <button id="start-button" disabled>系统准备中...</button>
+            <div id="loading-indicator">
+                <div class="spinner"></div>
+                <p style="color: white; margin-top: 10px;">启动AR中</p>
+            </div>
+            <div id="model-preload-status" style="color: rgba(255,255,255,0.8); margin-top: 10px; display: none;">
+                正在预加载3D模型...
+                <div class="loading-progress">
+                    <div class="loading-progress-bar" id="preload-progress"></div>
+                </div>
+            </div>
+            <div id="error-message" style="color: #1925bb; margin-top: 10px; display: none;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Model Loading Status in AR -->
+<div id="model-loading-overlay" class="model-loading-overlay">
+    <div>模型加载中...</div>
+    <div class="loading-progress">
+        <div class="loading-progress-bar" id="ar-progress"></div>
+    </div>
+</div>
+
+<!-- Copyright Drawer -->
+<div id="copyright-drawer">
+    <div id="copyright-tab">© 鲸鲸工作室 Whaley Studio</div>
+    <div id="copyright-content">
+        <p>鲸落港 Whalefall Haven</p>
+        <p>鲸鲸工作室 Whaley Studio</p>
+        <p><a href="https://store.steampowered.com/app/3061230/_/" target="_blank">Visit us on Steam</a></p>
+    </div>
+</div>
+
+<!-- A-Frame Scene -->
+<a-scene mindar-image="imageTargetSrc: /assets/targets/whaley-target-bothsides.mind;
+            maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.01; warmupTolerance: 3; autoStart: false;"
+         color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
+         vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+
+    <a-camera position="0 0 0" look-controls="enabled: false"
+              cursor="fuse: false; rayOrigin: mouse;"
+              raycaster="near: 10; far: 10000; objects: .clickable"></a-camera>
+
+    <a-entity id="whaley-target" mindar-image-target="targetIndex: 0">
+        <!-- Spine container will be added via THREE.js -->
+    </a-entity>
+</a-scene>
+
+<script type="module">
+    import * as spine from "spine-threejs";
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Use THREE from A-Frame's global scope
+        const THREE = window.THREE;
+        // Safari Detection
+        function isSafariOrWeChatIOS() {
+            const ua = navigator.userAgent.toLowerCase();
+            const isIOS = /iphone|ipad|ipod/.test(ua);
+
+            const isSafari = isIOS &&
+                ua.includes('safari') &&
+                !ua.includes('crios') &&
+                !ua.includes('fxios') &&
+                !ua.includes('edgios');
+
+            const isWeChatIOS = /micromessenger/.test(ua) && isIOS;
+
+            return isSafari || isWeChatIOS;
+        }
+
+        // Get references to DOM elements
+        const sceneEl = document.querySelector('a-scene');
+        const uiOverlay = document.getElementById('ui-overlay');
+        const startButton = document.getElementById('start-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const modelPreloadStatus = document.getElementById('model-preload-status');
+        const preloadProgress = document.getElementById('preload-progress');
+        const errorMessage = document.getElementById('error-message');
+        const modelLoadingOverlay = document.getElementById('model-loading-overlay');
+        const arProgress = document.getElementById('ar-progress');
+
+        // Safari-related elements
+        const safariWarning = document.getElementById('safari-warning');
+        const normalInterface = document.getElementById('normal-interface');
+        const copyLinkButton = document.getElementById('copy-link-button');
+        const copySuccess = document.getElementById('copy-success');
+        const mainInstruction = document.getElementById('main-instruction');
+
+        // Copyright drawer
+        const copyrightDrawer = document.getElementById('copyright-drawer');
+        const copyrightTab = document.getElementById('copyright-tab');
+
+        // Copyright drawer toggle
+        copyrightTab.addEventListener('click', () => {
+            copyrightDrawer.classList.toggle('expanded');
+        });
+
+        // Check for Safari and show appropriate interface
+        if (isSafariOrWeChatIOS()) {
+            console.log("Safari detected - showing browser compatibility warning");
+            safariWarning.style.display = 'block';
+            normalInterface.style.display = 'none';
+            mainInstruction.style.display = 'none';
+
+            // Copy link button functionality
+            copyLinkButton.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    copySuccess.style.display = 'block';
+                    copyLinkButton.textContent = '已复制！';
+
+                    setTimeout(() => {
+                        copySuccess.style.display = 'none';
+                        copyLinkButton.textContent = '复制链接';
+                    }, 3000);
+                } catch (error) {
+                    console.error('Failed to copy link:', error);
+                    const textArea = document.createElement('textarea');
+                    textArea.value = window.location.href;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+
+                    copySuccess.style.display = 'block';
+                    copyLinkButton.textContent = '已复制！';
+
+                    setTimeout(() => {
+                        copySuccess.style.display = 'none';
+                        copyLinkButton.textContent = '复制链接';
+                    }, 3000);
+                }
+            });
+
+            return;
+        }
+
+        // Spine variables
+        const whaleyTarget = document.getElementById('whaley-target');
+        let skeletonMesh;
+        let assetManager;
+        let targetVisible = false;
+        let isAnimating = false;
+
+        let arSystem;
+        let isARStarted = false;
+        let sceneLoaded = false;
+        let modelLoaded = false;
+
+        // Helper function to show error message
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            startButton.disabled = false;
+            startButton.textContent = "重试";
+            loadingIndicator.style.display = "none";
+            modelPreloadStatus.style.display = "none";
+        }
+
+        // Update progress bar
+        function updateProgress(progressBar, percent) {
+            progressBar.style.width = percent + '%';
+        }
+
+        // Spine asset preloading
+        async function preloadSpineAssets() {
+            return new Promise((resolve, reject) => {
+                try {
+                    modelPreloadStatus.style.display = 'block';
+                    modelPreloadStatus.textContent = '正在预加载Spine模型...';
+                    updateProgress(preloadProgress, 0);
+
+                    const baseUrl = "./assets/spine/";
+                    const pma = false;
+
+                    assetManager = new spine.AssetManager(baseUrl, undefined, pma);
+                    assetManager.loadText("Whaley.json");
+                    assetManager.loadTextureAtlas("Whaley.atlas.txt");
+
+                    let fakeProgress = 0;
+                    const checkLoading = setInterval(() => {
+                        // Simulate progress
+                        fakeProgress = Math.min(fakeProgress + 5, 90);
+                        updateProgress(preloadProgress, fakeProgress);
+
+                        if (assetManager.isLoadingComplete()) {
+                            clearInterval(checkLoading);
+                            console.log('Spine assets preloaded successfully');
+                            updateProgress(preloadProgress, 100);
+                            modelLoaded = true;
+                            resolve();
+                        }
+
+                        if (assetManager.hasErrors()) {
+                            clearInterval(checkLoading);
+                            const errors = assetManager.getErrors();
+                            console.error('Spine loading errors:', errors);
+                            reject(new Error('Spine assets failed to load: ' + Object.keys(errors).join(', ')));
+                        }
+                    }, 100);
+
+                } catch (error) {
+                    console.error('Spine preload failed:', error);
+                    reject(error);
+                }
+            });
+        }
+
+        // Create Spine mesh
+        function createSpineMesh() {
+            try {
+                const atlas = assetManager.require("Whaley.atlas.txt");
+                const atlasLoader = new spine.AtlasAttachmentLoader(atlas);
+                const skeletonJson = new spine.SkeletonJson(atlasLoader);
+                skeletonJson.scale = 1;
+                const skeletonData = skeletonJson.readSkeletonData(assetManager.require("Whaley.json"));
+
+                skeletonMesh = new spine.SkeletonMesh({
+                    skeletonData,
+                    zOffset: 0.00001,  // ← Key fix: minimize Z separation between slots
+                    materialFactory: param => new THREE.MeshBasicMaterial({
+                        ...param,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        depthWrite: false,
+                        depthTest: false,  // Since we're using tiny zOffset, disable depth test
+                        blending: THREE.CustomBlending,
+                        blendSrc: THREE.OneFactor,        // PMA blending
+                        blendDst: THREE.OneMinusSrcAlphaFactor,
+                    })
+                });
+
+                skeletonMesh.scale.set(0.0005, 0.0005, 0.0005);
+                skeletonMesh.position.set(0, 0, -0.5);
+
+                // Add to target entity
+                const targetObject = whaleyTarget.object3D;
+                targetObject.add(skeletonMesh);
+
+                // Setup click interaction
+                const raycaster = new THREE.Raycaster();
+                const mouse = new THREE.Vector2();
+
+                sceneEl.addEventListener('click', (event) => {
+                    if (!targetVisible || isAnimating) return;
+
+                    const camera = sceneEl.camera;
+                    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                    raycaster.setFromCamera(mouse, camera);
+                    const intersects = raycaster.intersectObject(skeletonMesh, true);
+
+                    if (intersects.length > 0) {
+                        handleSpineClick();
+                    }
+                });
+
+                console.log('Spine mesh created successfully');
+                return true;
+            } catch (error) {
+                console.error('Failed to create Spine mesh:', error);
+                return false;
+            }
+        }
+
+        // Animation logic
+        function playAnimation(animationName, loop, onComplete) {
+            if (!skeletonMesh) return;
+
+            const trackEntry = skeletonMesh.state.setAnimation(0, animationName, loop);
+
+            if (onComplete) {
+                trackEntry.listener = {
+                    complete: () => {
+                        onComplete();
+                    }
+                };
+            }
+        }
+
+        function startIdleSequence() {
+            isAnimating = true;
+            playAnimation("idle_adv", false, () => {
+                playAnimation("Idle_tired", true);
+                isAnimating = false;
+            });
+        }
+
+        function handleSpineClick() {
+            isAnimating = true;
+            console.log("Whaley clicked");
+
+            playAnimation("See", false, () => {
+                playAnimation("idle_adv", false, () => {
+                    playAnimation("Idle_tired", true);
+                    isAnimating = false;
+                });
+            });
+        }
+
+        // Enhanced preload assets function
+        async function preloadAssets() {
+            try {
+                await preloadSpineAssets();
+                console.log("All assets preloaded successfully");
+            } catch (error) {
+                console.warn("Spine preload failed:", error);
+                throw error;
+            }
+        }
+
+        // Wait for scene to load
+        sceneEl.addEventListener('loaded', function () {
+            console.log("Scene loading...");
+            arSystem = sceneEl.systems["mindar-image-system"];
+            sceneLoaded = true;
+
+            startButton.disabled = false;
+            startButton.textContent = "开始";
+            console.log("Scene loaded, AR system ready");
+        });
+
+        // Target tracking events
+        whaleyTarget.addEventListener("targetFound", event => {
+            console.log("Whaley target found");
+            targetVisible = true;
+
+            if (skeletonMesh && modelLoaded) {
+                startIdleSequence();
+                modelLoadingOverlay.style.display = 'none';
+            } else {
+                modelLoadingOverlay.style.display = 'block';
+                let fakeProgress = 0;
+                const progressInterval = setInterval(() => {
+                    fakeProgress += 2;
+                    updateProgress(arProgress, fakeProgress);
+
+                    if (fakeProgress >= 100 || modelLoaded) {
+                        clearInterval(progressInterval);
+                        if (modelLoaded) {
+                            if (!skeletonMesh) {
+                                createSpineMesh();
+                            }
+                            startIdleSequence();
+                            modelLoadingOverlay.style.display = 'none';
+                        }
+                    }
+                }, 100);
+            }
+        });
+
+        whaleyTarget.addEventListener("targetLost", event => {
+            console.log("Whaley target lost");
+            targetVisible = false;
+            isAnimating = false;
+            modelLoadingOverlay.style.display = 'none';
+        });
+
+        // Start button click handler
+        startButton.addEventListener('click', async () => {
+            errorMessage.style.display = 'none';
+
+            if (!sceneLoaded || !arSystem) {
+                showError("场景还未加载完成，请稍等几秒后重试");
+                return;
+            }
+
+            startButton.disabled = true;
+            startButton.textContent = "加载中...";
+            loadingIndicator.style.display = "block";
+
+            try {
+                console.log("Starting asset preload...");
+                await preloadAssets();
+
+                // Create Spine mesh after assets loaded
+                if (!createSpineMesh()) {
+                    throw new Error("Failed to create Spine mesh");
+                }
+
+                console.log("Starting AR system...");
+                arSystem.start();
+                isARStarted = true;
+
+            } catch (error) {
+                console.error("Failed to start AR:", error);
+
+                if (error.message && error.message.includes('Spine')) {
+                    showError("Spine模型加载失败，请检查文件");
+                } else if (error.message && error.message.includes('camera')) {
+                    showError("摄像头访问失败，请允许摄像头权限");
+                } else {
+                    showError(`启动失败: ${error.message || '未知错误'}`);
+                }
+            }
+        });
+
+        // AR Event Listeners
+        sceneEl.addEventListener("arReady", (event) => {
+            console.log("MindAR is ready");
+            uiOverlay.classList.add('hidden');
+        });
+
+        sceneEl.addEventListener("arError", (event) => {
+            console.error("MindAR failed to start", event);
+            uiOverlay.classList.remove('hidden');
+
+            if (event.detail && event.detail.error) {
+                if (event.detail.error.name === 'NotAllowedError') {
+                    showError("摄像头权限被拒绝，请允许摄像头访问");
+                } else if (event.detail.error.name === 'NotFoundError') {
+                    showError("未找到摄像头设备");
+                } else {
+                    showError(`AR错误: ${event.detail.error.message}`);
+                }
+            } else {
+                showError("AR系统启动失败，请检查摄像头权限");
+            }
+        });
+
+        // Animation loop for Spine
+        let lastFrameTime = Date.now() / 1000;
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (skeletonMesh && targetVisible) {
+                const now = Date.now() / 1000;
+                const delta = now - lastFrameTime;
+                lastFrameTime = now;
+
+                skeletonMesh.update(delta);
+            }
+        }
+        animate();
+
+        // Scene loading timeout
+        setTimeout(() => {
+            if (!sceneLoaded) {
+                console.warn("Scene loading timeout");
+                showError("场景加载超时，请刷新页面重试");
+            }
+        }, 15000);
+    });
+</script>
+</body>
+</html>
