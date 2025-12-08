@@ -8,7 +8,6 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.0/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/BillyPung/mind-ar-js/mindar-image-aframe.prod.js"></script>
     <script type="importmap">
         {
@@ -21,7 +20,7 @@
         }
     </script>
     <link rel="stylesheet" href="./assets/css/style.css" />
-    <title>AR Demo</title>
+    <title>鲸落港-鲸鲸AR</title>
     <style>
         /* Additional styles for loading states */
         .model-loading-overlay {
@@ -108,7 +107,7 @@
         }
 
         #copyright-drawer.expanded #copyright-content {
-            max-height: 200px;
+            max-height: 300px;
             padding: 15px 20px;
         }
 
@@ -126,6 +125,35 @@
         #copyright-content a:hover {
             color: #81d4fa;
             text-decoration: underline;
+        }
+
+        /* Steam Widget - responsive without scaling */
+        .steam-wrap {
+            width: 100%;
+            max-width: 646px;
+            margin: 10px auto 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .steam-widget {
+            width: 100%;
+            max-width: 646px;
+            height: 190px;
+            border: none;
+            border-radius: 8px;
+        }
+
+        /* On small screens, use minimum readable width with scroll */
+        @media (max-width: 400px) {
+            .steam-wrap {
+                overflow-x: auto;
+                justify-content: flex-start;
+            }
+            .steam-widget {
+                min-width: 320px;
+                width: 320px;
+            }
         }
     </style>
 
@@ -185,7 +213,13 @@
     <div id="copyright-content">
         <p>鲸落港 Whalefall Haven</p>
         <p>鲸鲸工作室 Whaley Studio</p>
-        <p><a href="https://store.steampowered.com/app/3061230/_/" target="_blank">Visit us on Steam</a></p>
+        <div class="steam-wrap">
+            <iframe
+                    src="https://store.steampowered.com/widget/3061230/"
+                    frameborder="0"
+                    class="steam-widget">
+            </iframe>
+        </div>
     </div>
 </div>
 
@@ -398,18 +432,21 @@
                 skeletonMesh.position.set(0, 0, -0.5);
                 // Scale will be set when attached to target (normal or mirrored)
 
-                // Setup click interaction
+                // Setup click/touch interaction using Pointer Events
                 const raycaster = new THREE.Raycaster();
-                const mouse = new THREE.Vector2();
+                const pointer = new THREE.Vector2();
 
-                sceneEl.addEventListener('click', (event) => {
+                sceneEl.addEventListener('pointerup', (event) => {
                     if (activeTarget === null || isAnimating) return;
 
-                    const camera = sceneEl.camera;
-                    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-                    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                    // Ignore if it was a drag/scroll (pointer moved significantly)
+                    if (event.pointerType === 'touch' && event.isPrimary === false) return;
 
-                    raycaster.setFromCamera(mouse, camera);
+                    const camera = sceneEl.camera;
+                    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+                    pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+                    raycaster.setFromCamera(pointer, camera);
                     const intersects = raycaster.intersectObject(skeletonMesh, true);
 
                     if (intersects.length > 0) {
