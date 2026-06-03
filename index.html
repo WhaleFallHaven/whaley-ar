@@ -6,202 +6,160 @@
       Dev: Billiton
     -->
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/BillyPung/mind-ar-js/mindar-image-aframe.prod.js"></script>
-    <script type="importmap">
-        {
-          "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.181.0/examples/jsm/",
-            "mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js",
-            "spine-threejs": "https://unpkg.com/@esotericsoftware/spine-threejs@4.2.95/dist/esm/spine-threejs.min.mjs"
-          }
-        }
-    </script>
-    <link rel="stylesheet" href="./assets/css/style.css" />
-    <title>鲸落港-鲸鲸AR</title>
-    <style>
-        /* Additional styles for loading states */
-        .model-loading-overlay {
-            position: absolute;
-            bottom: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 14px;
-            z-index: 998;
-            display: none;
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        .loading-progress {
-            width: 150px;
-            height: 4px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 2px;
-            margin-top: 8px;
-            overflow: hidden;
+  <!-- Browser chrome colour matches splash background (mobile) -->
+  <meta name="theme-color" content="#080c16" />
+
+  <!--
+    Early lang detection — must run BEFORE any content renders.
+    Sets html[lang] from localStorage or navigator.language so
+    screen readers announce the correct language from the first frame.
+    Keep this inline, synchronous, and tiny.
+  -->
+  <script>
+    (function(){
+      try{
+        var s=localStorage.getItem("whaley-lang");
+        var l=(s==="zh"||s==="en")?s:
+              (navigator.language||"zh").toLowerCase().startsWith("zh")?"zh":"en";
+        document.documentElement.lang=l==="zh"?"zh-CN":"en";
+      }catch(_){}
+    })();
+  </script>
+
+  <!-- Adobe Fonts (Typekit) — LXGW WenKai TC, used for both 中文 and English -->
+  <link rel="preconnect" href="https://use.typekit.net" crossorigin>
+  <link rel="preconnect" href="https://p.typekit.net" crossorigin>
+  <script>
+    (function(d) {
+      var config = {
+        kitId: 'oep4rkz',
+        scriptTimeout: 3000,
+        async: true
+      },
+      h=d.documentElement,t=setTimeout(function(){h.className=h.className.replace(/\bwf-loading\b/g,"")+" wf-inactive";},config.scriptTimeout),tk=d.createElement("script"),f=false,s=d.getElementsByTagName("script")[0],a;h.className+=" wf-loading";tk.src='https://use.typekit.net/'+config.kitId+'.js';tk.async=true;tk.onload=tk.onreadystatechange=function(){a=this.readyState;if(f||a&&a!="complete"&&a!="loaded")return;f=true;clearTimeout(t);try{Typekit.load(config)}catch(e){}};s.parentNode.insertBefore(tk,s)
+    })(document);
+  </script>
+
+  <!-- i18n + font loader — load before stylesheets so strings are ready -->
+  <script src="./assets/js/i18n.js"></script>
+
+  <link rel="stylesheet" href="./assets/css/style.css" />
+  <title>鲸落港-鲸鲸AR</title>
+
+  <!-- AR runtime: A-Frame + MindAR + importmap for spine-threejs -->
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/BillyPung/mind-ar-js/mindar-image-aframe.prod.js"></script>
+  <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.181.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.181.0/examples/jsm/",
+          "mindar-image-three":"https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js",
+          "spine-threejs": "https://unpkg.com/@esotericsoftware/spine-threejs@4.2.95/dist/esm/spine-threejs.min.mjs"
         }
-
-        .loading-progress-bar {
-            height: 100%;
-            background: linear-gradient(45deg, #25398a, #246bee);
-            width: 0%;
-            transition: width 0.3s ease;
-            border-radius: 2px;
-        }
-
-        /* Copy Link Button */
-        #copy-link-button {
-            background: linear-gradient(45deg, #4CAF50, #45a049);
-            color: white;
-            border: none;
-            padding: 1rem 2rem;
-            font-size: 1.3rem;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            min-width: 200px;
-        }
-
-        #copy-link-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-            background: linear-gradient(45deg, #45a049, #4CAF50);
-        }
-
-        /* Copyright Drawer */
-        #copyright-drawer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 999;
-            transition: transform 0.3s ease;
-        }
-
-        #copyright-tab {
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            color: white;
-            padding: 8px 20px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 12px;
-            border-top-left-radius: 10px;
-            border-top-right-radius: 10px;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
-        }
-
-        #copyright-content {
-            background: linear-gradient(135deg, #2a5298, #1e3c72);
-            color: white;
-            padding: 15px 20px;
-            text-align: center;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease, padding 0.3s ease;
-        }
-
-        #copyright-drawer.expanded #copyright-content {
-            max-height: 300px;
-            padding: 15px 20px;
-        }
-
-        #copyright-content p {
-            margin: 5px 0;
-            font-size: 14px;
-        }
-
-        #copyright-content a {
-            color: #4fc3f7;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        #copyright-content a:hover {
-            color: #81d4fa;
-            text-decoration: underline;
-        }
-
-        /* Steam Widget - responsive without scaling */
-        .steam-wrap {
-            width: 100%;
-            max-width: 646px;
-            margin: 10px auto 0;
-            display: flex;
-            justify-content: center;
-        }
-
-        .steam-widget {
-            width: 100%;
-            max-width: 646px;
-            height: 190px;
-            border: none;
-            border-radius: 8px;
-        }
-
-        /* On small screens, use minimum readable width with scroll */
-        @media (max-width: 400px) {
-            .steam-wrap {
-                overflow-x: auto;
-                justify-content: flex-start;
-            }
-            .steam-widget {
-                min-width: 320px;
-                width: 320px;
-            }
-        }
-    </style>
-
-
+      }
+  </script>
 </head>
 
 <body>
 <!-- Start UI Overlay -->
 <div id="ui-overlay">
-    <div class="start-container">
-        <p id="main-instruction">同意摄像头权限后，将摄像头对准识别图像。</p>
 
-        <!-- Safari Warning (initially hidden) -->
-        <div id="safari-warning" style="display: none;">
-            <h3 style="color: #1925bb; margin-bottom: 1rem;">⚠️ 浏览器不兼容</h3>
-            <p style="color: rgba(255,255,255,0.9); margin-bottom: 1rem;">
-                您的浏览器对AR功能支持有限，请使用以下浏览器获得最佳体验：
-            </p>
-            <p style="color: white; font-weight: bold; margin-bottom: 1.5rem;">
-                Chrome | Firefox | Edge
-            </p>
-            <button id="copy-link-button">复制链接</button>
-            <p id="copy-success" style="color: #979f97; margin-top: 10px; display: none;">
-                链接已复制！请在其他浏览器中打开
-            </p>
-        </div>
+  <!-- Bubble particles -->
+  <div class="bubbles" aria-hidden="true">
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+  </div>
 
-        <!-- Normal start interface -->
-        <div id="normal-interface">
-            <button id="start-button" disabled>系统准备中...</button>
-            <div id="loading-indicator">
-                <div class="spinner"></div>
-                <p style="color: white; margin-top: 10px;">启动AR中</p>
-            </div>
-            <div id="model-preload-status" style="color: rgba(255,255,255,0.8); margin-top: 10px; display: none;">
-                正在预加载3D模型...
-                <div class="loading-progress">
-                    <div class="loading-progress-bar" id="preload-progress"></div>
-                </div>
-            </div>
-            <div id="error-message" style="color: #1925bb; margin-top: 10px; display: none;"></div>
-        </div>
+  <!-- Lang switcher injected here by WhaleyI18n.injectSwitcher() -->
+
+  <div class="start-container">
+
+    <!-- Studio credit -->
+    <p class="brand-studio" data-i18n="studio"></p>
+
+    <!--
+      hgroup groups the Chinese title + English subtitle semantically.
+      Screen readers treat them as a single heading unit.
+    -->
+    <hgroup>
+      <h1 class="brand-title">鲸落港</h1>
+      <p  class="brand-en" data-i18n="titleEn" role="doc-subtitle"></p>
+    </hgroup>
+
+    <div class="brand-divider" aria-hidden="true"></div>
+
+    <p id="main-instruction" data-i18n="instruction"></p>
+
+    <!-- Safari / WeChat Warning -->
+    <div id="safari-warning" style="display: none;">
+      <h3 data-i18n="safariTitle"></h3>
+      <p  data-i18n="safariDesc"></p>
+      <p><strong data-i18n="safariBrowsers"></strong></p>
+      <button id="copy-link-button" data-i18n="copyLink"></button>
+      <p id="copy-success" style="display: none;" data-i18n="copySuccess"></p>
     </div>
+
+    <!-- Normal interface -->
+    <div id="normal-interface">
+      <!--
+        aria-busy: tells AT the button is in a loading state.
+        aria-disabled mirrors the disabled attribute for AT that
+        may not honour the native disabled state consistently.
+      -->
+      <button id="start-button"
+              disabled
+              aria-disabled="true"
+              aria-busy="false"
+              data-i18n="btnPreparing"></button>
+
+      <div id="loading-indicator" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <p data-i18n="arLoading"></p>
+      </div>
+
+      <!--
+        aria-live="polite": announces when preload status text changes
+        without interrupting the current screen reader utterance.
+      -->
+      <div id="model-preload-status"
+           role="status"
+           aria-live="polite"
+           style="display: none;"
+           data-i18n="modelPreload"></div>
+
+      <div class="loading-progress" style="display: none;">
+        <div class="loading-progress-bar" id="preload-progress"></div>
+      </div>
+
+      <!--
+        role="alert" + aria-live="assertive": error text is announced
+        immediately and interrupts any current screen reader speech.
+        data-i18n left empty so applyToDOM() skips it when empty;
+        showError() sets data-i18n to the error key so lang switch
+        re-renders the correct translated message.
+      -->
+      <div id="error-message"
+           role="alert"
+           aria-live="assertive"
+           style="display: none;"></div>
+    </div>
+
+  </div>
 </div>
 
 <!-- Model Loading Status in AR -->
 <div id="model-loading-overlay" class="model-loading-overlay">
-    <div>模型加载中...</div>
+    <span data-i18n="modelAr"></span>
     <div class="loading-progress">
         <div class="loading-progress-bar" id="ar-progress"></div>
     </div>
@@ -209,18 +167,34 @@
 
 <!-- Copyright Drawer -->
 <div id="copyright-drawer">
-    <div id="copyright-tab">© 鲸鲸工作室 Whaley Studio</div>
-    <div id="copyright-content">
-        <p>鲸落港 Whalefall Haven</p>
-        <p>鲸鲸工作室 Whaley Studio</p>
-        <div class="steam-wrap">
-            <iframe
-                    src="https://store.steampowered.com/widget/3061230/"
-                    frameborder="0"
-                    class="steam-widget">
-            </iframe>
-        </div>
+
+  <!--
+    Changed from <div> to <button>:
+    - Keyboard focusable by default
+    - Enter/Space activates click handler without extra JS
+    - aria-expanded reflects open/closed state for AT
+    - aria-controls links it to the content it toggles
+  -->
+  <button id="copyright-tab"
+          aria-expanded="false"
+          aria-controls="copyright-content"
+          data-i18n="copyright"></button>
+
+  <div id="copyright-content">
+    <!-- .copyright-inner required for grid-row animation (overflow:hidden) -->
+    <div class="copyright-inner">
+      <p data-i18n="copyrightLine1"></p>
+      <p data-i18n="copyrightLine2"></p>
+      <div class="steam-wrap">
+        <iframe src="https://store.steampowered.com/widget/3061230/"
+                frameborder="0"
+                class="steam-widget"
+                title="Whalefall Haven on Steam"
+                loading="lazy"></iframe>
+      </div>
     </div>
+  </div>
+
 </div>
 
 <!-- A-Frame Scene -->
@@ -246,22 +220,17 @@
     import * as spine from "spine-threejs";
 
     document.addEventListener("DOMContentLoaded", function() {
+        WhaleyI18n.init();
+        WhaleyI18n.injectSwitcher();
+        const t = (key) => WhaleyI18n.t(key);
+
         // Use THREE from A-Frame's global scope
         const THREE = window.THREE;
-        // Safari Detection
-        function isSafariOrWeChatIOS() {
+        // WeChat (iOS) in-app browser detection — its WKWebView can't run camera AR
+        function isWeChatIOS() {
             const ua = navigator.userAgent.toLowerCase();
             const isIOS = /iphone|ipad|ipod/.test(ua);
-
-            const isSafari = isIOS &&
-                ua.includes('safari') &&
-                !ua.includes('crios') &&
-                !ua.includes('fxios') &&
-                !ua.includes('edgios');
-
-            const isWeChatIOS = /micromessenger/.test(ua) && isIOS;
-
-            return isSafari || isWeChatIOS;
+            return /micromessenger/.test(ua) && isIOS;
         }
 
         // Get references to DOM elements
@@ -288,12 +257,13 @@
 
         // Copyright drawer toggle
         copyrightTab.addEventListener('click', () => {
-            copyrightDrawer.classList.toggle('expanded');
+            const isExpanded = copyrightDrawer.classList.toggle('expanded');
+            copyrightTab.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
         });
 
-        // Check for Safari and show appropriate interface
-        if (isSafariOrWeChatIOS()) {
-            console.log("Safari detected - showing browser compatibility warning");
+        // Check for WeChat in-app browser and show the open-in-browser fallback
+        if (isWeChatIOS()) {
+            console.log("WeChat iOS detected - showing open-in-browser warning");
             safariWarning.style.display = 'block';
             normalInterface.style.display = 'none';
             mainInstruction.style.display = 'none';
@@ -303,11 +273,11 @@
                 try {
                     await navigator.clipboard.writeText(window.location.href);
                     copySuccess.style.display = 'block';
-                    copyLinkButton.textContent = '已复制！';
+                    copyLinkButton.textContent = t('copyDone');
 
                     setTimeout(() => {
                         copySuccess.style.display = 'none';
-                        copyLinkButton.textContent = '复制链接';
+                        copyLinkButton.textContent = t('copyLink');
                     }, 3000);
                 } catch (error) {
                     console.error('Failed to copy link:', error);
@@ -319,11 +289,11 @@
                     document.body.removeChild(textArea);
 
                     copySuccess.style.display = 'block';
-                    copyLinkButton.textContent = '已复制！';
+                    copyLinkButton.textContent = t('copyDone');
 
                     setTimeout(() => {
                         copySuccess.style.display = 'none';
-                        copyLinkButton.textContent = '复制链接';
+                        copyLinkButton.textContent = t('copyLink');
                     }, 3000);
                 }
             });
@@ -347,13 +317,17 @@
         let modelLoaded = false;
 
         // Helper function to show error message
-        function showError(message) {
+        function showError(message, key) {
             errorMessage.textContent = message;
+            // Store the key so lang switch can re-render this message
+            if (key) errorMessage.dataset.i18n = key;
             errorMessage.style.display = 'block';
             startButton.disabled = false;
-            startButton.textContent = "重试";
-            loadingIndicator.style.display = "none";
-            modelPreloadStatus.style.display = "none";
+            startButton.setAttribute('aria-disabled', 'false');
+            startButton.setAttribute('aria-busy', 'false');
+            startButton.textContent = t('btnRetry');
+            loadingIndicator.style.display = 'none';
+            modelPreloadStatus.style.display = 'none';
         }
 
         // Update progress bar
@@ -366,7 +340,7 @@
             return new Promise((resolve, reject) => {
                 try {
                     modelPreloadStatus.style.display = 'block';
-                    modelPreloadStatus.textContent = '正在预加载Spine模型...';
+                    modelPreloadStatus.textContent = t('modelPreload');
                     updateProgress(preloadProgress, 0);
 
                     const baseUrl = "./assets/spine/";
@@ -539,7 +513,8 @@
             sceneLoaded = true;
 
             startButton.disabled = false;
-            startButton.textContent = "开始";
+            startButton.setAttribute('aria-disabled', 'false');
+            startButton.textContent = t('btnReady');
             console.log("Scene loaded, AR system ready");
         });
 
@@ -645,12 +620,14 @@
             errorMessage.style.display = 'none';
 
             if (!sceneLoaded || !arSystem) {
-                showError("场景还未加载完成，请稍等几秒后重试");
+                showError(t('errTimeout'), 'errTimeout');
                 return;
             }
 
             startButton.disabled = true;
-            startButton.textContent = "加载中...";
+            startButton.setAttribute('aria-disabled', 'true');
+            startButton.setAttribute('aria-busy', 'true');
+            startButton.textContent = t('btnLoading');
             loadingIndicator.style.display = "block";
 
             try {
@@ -670,11 +647,11 @@
                 console.error("Failed to start AR:", error);
 
                 if (error.message && error.message.includes('Spine')) {
-                    showError("Spine模型加载失败，请检查文件");
+                    showError(t('errSpine'), 'errSpine');
                 } else if (error.message && error.message.includes('camera')) {
-                    showError("摄像头访问失败，请允许摄像头权限");
+                    showError(t('errCamera'), 'errCamera');
                 } else {
-                    showError(`启动失败: ${error.message || '未知错误'}`);
+                    showError(t('errStartPrefix') + (error.message || t('errUnknown')));
                 }
             }
         });
@@ -691,14 +668,14 @@
 
             if (event.detail && event.detail.error) {
                 if (event.detail.error.name === 'NotAllowedError') {
-                    showError("摄像头权限被拒绝，请允许摄像头访问");
+                    showError(t('errCameraDenied'), 'errCameraDenied');
                 } else if (event.detail.error.name === 'NotFoundError') {
-                    showError("未找到摄像头设备");
+                    showError(t('errCameraNotFound'), 'errCameraNotFound');
                 } else {
-                    showError(`AR错误: ${event.detail.error.message}`);
+                    showError(t('errArPrefix') + event.detail.error.message);
                 }
             } else {
-                showError("AR系统启动失败，请检查摄像头权限");
+                showError(t('errArGeneric'), 'errArGeneric');
             }
         });
 
@@ -721,7 +698,7 @@
         setTimeout(() => {
             if (!sceneLoaded) {
                 console.warn("Scene loading timeout");
-                showError("场景加载超时，请刷新页面重试");
+                showError(t('errTimeout'), 'errTimeout');
             }
         }, 15000);
     });
