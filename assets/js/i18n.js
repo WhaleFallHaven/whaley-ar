@@ -1,15 +1,18 @@
 /**
  * assets/js/i18n.js
- * Whaley AR — i18n + font loader  [hardened]
+ * Whaley AR — lightweight i18n (zh / en)
  *
- * Fixes applied vs v1:
- *   - Font tryNext() double-call bug: `settled` flag prevents racing
- *     timer + onerror from both advancing the source index
- *   - localStorage wrapped in try/catch (fails in some private/WebView modes)
- *   - Early lang detection: sets document.documentElement.lang immediately
- *     so screen readers announce the correct language from first paint
- *   - lang switcher uses role="group" + aria-label for AT
- *   - setLang() also updates aria-expanded on copyright-tab if present
+ * Responsibilities:
+ *   - Detect language from localStorage or navigator.language
+ *   - Apply translated strings to [data-i18n] / [data-i18n-html] elements
+ *   - Inject the 中 / EN language switcher and keep its pressed state in sync
+ *   - Keep document.documentElement.lang current for screen readers
+ *
+ * Notes:
+ *   - localStorage access is wrapped in try/catch (throws in some
+ *     private/WebView modes); falls back to an in-memory store.
+ *   - Web fonts are loaded by the Adobe Fonts (Typekit) snippet in
+ *     index.html <head>; this module does not fetch any fonts.
  */
 
 (function (global) {

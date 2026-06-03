@@ -1,7 +1,8 @@
 /* ============================================================
    Whaley AR — 鲸落港 Whalefall Haven
    Deep-sea bioluminescent splash. Dark mode only.
-   Token names follow CLAUDE.md (single source of truth).
+   The :root custom properties below are the single source of
+   truth for colour and type — reference the tokens, not raw hex.
    ============================================================ */
 
 :root {

@@ -181,7 +181,8 @@
           data-i18n="copyright"></button>
 
   <div id="copyright-content">
-    <!-- .copyright-inner required for grid-row animation (overflow:hidden) -->
+    <!-- .copyright-inner wraps the drawer body; overflow:hidden clips it while
+         #copyright-content animates open/closed via max-height -->
     <div class="copyright-inner">
       <p data-i18n="copyrightLine1"></p>
       <p data-i18n="copyrightLine2"></p>
@@ -240,6 +241,7 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const modelPreloadStatus = document.getElementById('model-preload-status');
         const preloadProgress = document.getElementById('preload-progress');
+        const preloadProgressWrap = preloadProgress.closest('.loading-progress');
         const errorMessage = document.getElementById('error-message');
         const modelLoadingOverlay = document.getElementById('model-loading-overlay');
         const arProgress = document.getElementById('ar-progress');
@@ -328,6 +330,7 @@
             startButton.textContent = t('btnRetry');
             loadingIndicator.style.display = 'none';
             modelPreloadStatus.style.display = 'none';
+            if (preloadProgressWrap) preloadProgressWrap.style.display = 'none';
         }
 
         // Update progress bar
@@ -341,6 +344,7 @@
                 try {
                     modelPreloadStatus.style.display = 'block';
                     modelPreloadStatus.textContent = t('modelPreload');
+                    if (preloadProgressWrap) preloadProgressWrap.style.display = 'block';
                     updateProgress(preloadProgress, 0);
 
                     const baseUrl = "./assets/spine/";
