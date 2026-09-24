@@ -23,7 +23,7 @@
   /* Text */
   --color-text-primary:   #e8f4f8;
   --color-text-secondary: rgba(232, 244, 248, 0.62);
-  --color-text-muted:     rgba(232, 244, 248, 0.32);
+  --color-text-muted:     #9bb4be;
 
   /* Lines */
   --color-border:     rgba(0, 201, 192, 0.16);
@@ -43,6 +43,8 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+::selection { background: var(--color-whale); color: var(--color-abyss); }
 
 /* The page itself MUST stay transparent. MindAR injects the camera <video>
    at z-index:-2, behind the transparent WebGL canvas. Any opaque background
@@ -76,22 +78,29 @@ html, body {
    START OVERLAY — the deep-sea scene
    ============================================================ */
 #ui-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  bottom: var(--drawer-height, 44px);
   z-index: 1000;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 24px;
-  overflow: hidden;
+  padding: calc(72px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 28px max(20px, env(safe-area-inset-left, 0px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-padding-block: 16px;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--color-whale) var(--color-abyss);
   background: var(--color-abyss);
-  transition: opacity 0.6s var(--ease-out);
+  transition: opacity 0.3s var(--ease-out);
 }
 
 #ui-overlay.hidden {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
+#ui-overlay.hidden *, #ui-overlay.hidden::after { animation-play-state: paused; }
 
 /* Layered radial depth — light bleeding from the surface above */
 #ui-overlay::before {
@@ -162,7 +171,7 @@ html, body {
    LANGUAGE SWITCHER (injected by i18n.js)
    ============================================================ */
 #lang-switcher {
-  position: absolute;
+  position: fixed;
   top: calc(16px + env(safe-area-inset-top, 0px));
   right: calc(16px + env(safe-area-inset-right, 0px));
   display: flex;
@@ -199,8 +208,10 @@ html, body {
   position: relative;
   z-index: 1;
   text-align: center;
-  padding: 32px 24px;
-  width: min(360px, 90vw);
+  flex-shrink: 0;
+  margin-block: auto;
+  padding: 20px 8px;
+  width: min(100%, 360px);
   background: transparent;
   border: none;
 }
@@ -243,7 +254,7 @@ hgroup { margin: 0; }
 }
 
 #main-instruction {
-  font-size: 13px;
+  font-size: 1rem;
   line-height: 1.75;
   color: var(--color-text-secondary);
   margin: 0 0 28px;
@@ -255,15 +266,16 @@ hgroup { margin: 0; }
    START BUTTON — outlined glowing pill
    ============================================================ */
 #start-button {
+  scroll-margin-block: 16px;
   appearance: none;
   background: transparent;
   border: 1px solid var(--color-glow);
   color: var(--color-glow-soft);
   padding: 14px 40px;
   font-family: var(--f-body);
-  font-size: 13px;
+  font-size: 1rem;
   font-weight: 400;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.06em;
   border-radius: 40px;
   cursor: pointer;
   min-width: 180px;
@@ -308,37 +320,10 @@ hgroup { margin: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 #loading-indicator p {
   color: var(--color-text-secondary);
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 0.875rem;
+  letter-spacing: 0.02em;
   margin: 10px 0 0;
   font-weight: 300;
-}
-
-#model-preload-status {
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  margin: 16px 0 8px;
-  font-weight: 300;
-}
-
-/* Progress bar — teal fill, faint track */
-.loading-progress {
-  width: 180px;
-  max-width: 80%;
-  height: 2px;
-  margin: 12px auto 0;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.loading-progress-bar {
-  width: 0;
-  height: 100%;
-  background: var(--color-glow);
-  box-shadow: 0 0 8px var(--color-glow-dim);
-  border-radius: 2px;
-  transition: width 0.2s ease;
 }
 
 /* ============================================================
@@ -347,7 +332,7 @@ hgroup { margin: 0; }
 #error-message {
   margin-top: 20px;
   color: var(--color-error);
-  font-size: 12px;
+  font-size: 0.875rem;
   line-height: 1.6;
   font-weight: 400;
   letter-spacing: 0.04em;
@@ -359,7 +344,7 @@ hgroup { margin: 0; }
 /* ============================================================
    SAFARI / WECHAT WARNING
    ============================================================ */
-#safari-warning h3 {
+#safari-warning h2 {
   color: var(--color-error);
   font-size: 13px;
   font-weight: 400;
@@ -406,39 +391,10 @@ hgroup { margin: 0; }
 }
 
 /* ============================================================
-   IN-AR MODEL LOADING OVERLAY (over camera feed)
-   ============================================================ */
-.model-loading-overlay {
-  display: none;
-  position: fixed;
-  left: 50%;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%);
-  z-index: 1050;
-  padding: 14px 22px;
-  text-align: center;
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  font-weight: 300;
-  /* opaque fallback first, blur as progressive enhancement */
-  background: var(--color-deep);
-}
-.model-loading-overlay .loading-progress { margin-top: 10px; }
-@supports ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))) {
-  .model-loading-overlay {
-    background: rgba(10, 22, 40, 0.72);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-  }
-}
-
-/* ============================================================
    COPYRIGHT DRAWER — keyboard-reachable button, grid-row animation
    ============================================================ */
 #copyright-drawer {
+  background: var(--color-abyss);
   position: fixed;
   left: 0;
   right: 0;
@@ -458,7 +414,7 @@ hgroup { margin: 0; }
   border-top: 1px solid var(--color-border);
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
-  color: rgba(0, 201, 192, 0.45);
+  color: var(--color-whale);
   font-family: var(--f-body);
   font-size: 11px;
   letter-spacing: 0.14em;
@@ -476,16 +432,15 @@ hgroup { margin: 0; }
   }
 }
 
-/* Drawer grows upward (bottom pinned): tab rides up, content fills to the
-   screen edge. max-height transition — the grid-row 0fr→1fr trick collapses
-   to 0 inside an indefinite-height fixed drawer, so it can't be used here. */
+/* Immediate expansion avoids repeatedly resizing the splash's scroll area.
+   The drawer body scrolls independently on short screens. */
 #copyright-content {
-  overflow: hidden;
+  overflow-y: auto;
+  visibility: hidden;
   max-height: 0;
-  transition: max-height 0.5s var(--ease-out);
   background: var(--color-midnight);
 }
-#copyright-drawer.expanded #copyright-content { max-height: 80vh; }
+#copyright-drawer.expanded #copyright-content { max-height: 60vh; max-height: 60dvh; visibility: visible; }
 
 .copyright-inner {
   overflow: hidden;
@@ -515,17 +470,106 @@ hgroup { margin: 0; }
   border-radius: 8px;
 }
 
+/* Optional card reference; only requested when the guide is expanded. */
+.camera-note, .card-guide p {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin: 16px 0 0;
+}
+.card-guide { margin-top: 4px; }
+.card-guide summary {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 44px;
+  margin-inline: auto;
+  padding: 10px 4px;
+  cursor: pointer;
+  color: var(--color-whale);
+  font-size: 0.875rem;
+  text-underline-offset: 4px;
+}
+.card-guide summary:hover { text-decoration: underline; }
+.card-previews { display: flex; justify-content: center; gap: 16px; margin-top: 12px; }
+.card-previews img { width: min(34%, 104px); height: auto; object-fit: contain; border-radius: 6px; }
+.card-guide p { margin-top: 10px; }
+
+/* AR guidance sits outside the scene, leaving the character free to be tapped. */
+#ar-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+.ar-toolbar { display: flex; justify-content: space-between; align-items: start; gap: 12px; width: 100%; }
+.ar-control {
+  appearance: none;
+  border: 1px solid var(--color-whale);
+  border-radius: 24px;
+  background: var(--color-abyss);
+  color: var(--color-text-primary);
+  min-height: 44px;
+  padding: 10px 18px;
+  font: 400 0.875rem/1.5 var(--f-body);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.18s, color 0.18s;
+}
+.ar-control:hover:not(:disabled) { background: var(--color-trench); }
+.ar-control:disabled { border-color: var(--color-border-dim); color: var(--color-text-muted); cursor: default; }
+.ar-guidance {
+  width: min(100%, 28rem);
+  max-height: calc(100% - 64px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: rgba(8, 12, 22, 0.94);
+  text-align: center;
+  pointer-events: auto;
+  scrollbar-color: var(--color-whale) var(--color-abyss);
+}
+#ar-hint-title { color: var(--color-text-primary); font-size: 1rem; font-weight: 400; margin: 0; }
+#ar-hint-detail { color: var(--color-text-secondary); font-size: 0.875rem; margin: 6px 0 0; line-height: 1.6; }
+#greet-whaley { margin-top: 14px; color: var(--color-glow-soft); }
+#greet-whaley:disabled { color: var(--color-text-muted); }
+.hints-hidden .ar-guidance { width: auto; padding: 0; background: transparent; }
+.hints-hidden #greet-whaley { margin-top: 0; }
+.scan-reticle {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(42vw, 180px);
+  max-height: 32%;
+  stroke: var(--color-text-primary);
+  stroke-width: 2;
+  visibility: hidden;
+}
+#ar-hud:is([data-tracking="searching"], [data-tracking="lost"]):not(.hints-hidden) .scan-reticle { visibility: visible; }
+@media (max-height: 500px) and (orientation: landscape) {
+  #ar-hud { align-items: flex-end; }
+  .ar-guidance { width: min(52%, 28rem); padding: 12px 16px; }
+  .scan-reticle { left: 25%; top: 53%; width: 130px; max-height: 55%; }
+}
+
 /* ============================================================
    MOTION & RESPONSIVE
    ============================================================ */
 @media (max-width: 480px) {
-  .start-container { padding: 24px 18px; }
+  .start-container { padding-inline: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.15s !important;
+    transition-duration: 0s !important;
   }
 }
